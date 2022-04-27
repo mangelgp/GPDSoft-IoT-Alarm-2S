@@ -15,8 +15,8 @@ last modified: 25 april 2022.
 // #define WIFI_PASSWORD "CYGFCGeC43"
 
 // //*8 MAYO
-#define WIFI_NETWORK "IZZI-BC00"
-#define WIFI_PASSWORD "C863FC2EBC00"
+// #define WIFI_NETWORK "IZZI-BC00"
+// #define WIFI_PASSWORD "C863FC2EBC00"
 
 // //*HOME
 // #define WIFI_NETWORK "IZZI-B654b"
@@ -40,8 +40,8 @@ last modified: 25 april 2022.
 #define SERIAL_ID "esp32_8Mayo"
 
 // MODIDIFICAR DEPEDIENDO LA SUCURSAL ................................................
-#define xtopicToPublish "8mayo/alarm/"                                               //
-#define xqueryTopic "8mayo/alarm/query"                                             //
+#define xtopicToPublish "TEST/alarm/"                                               //
+#define xqueryTopic "TEST/alarm/query"                                             //
 // ...................................................................................
 
 
