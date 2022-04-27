@@ -1,5 +1,6 @@
 #include <Arduino.h>
 #include <WiFi.h>
+#include <Preferences.h>
 #include "PubSubClient.h"
 #include "time.h"
 
@@ -11,6 +12,7 @@ TaskHandle_t Task3;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
+Preferences prefs;
 
 volatile bool firstConnection = false;
 volatile bool wifiConnected = false;
@@ -30,8 +32,15 @@ char msg[50];
 unsigned int conteo = 0;
 unsigned long lastDebounceTime = 0; // tiempo del ultimo cambio de estado del sensor
 
+unsigned long timeOut = 10000;   // Tiempo máximo de espera en modo configuración (10s)
+unsigned long timer = 0;
+
 String queryTopic = xqueryTopic;
 String topicToPublish = xtopicToPublish;
+
+String incomingByte = "";
+String ssid = "NETWORK_SSID";
+String pass = "NETWORK_PASS";
 
 void setupWiFi();
 void callback(char* topic, byte* payload, unsigned int length);
@@ -84,7 +93,7 @@ void checkWiFiConnection(void *parameter){
 
       wifiConnected = false;
       Serial.println("[WIFI] Connecting...");
-      WiFi.begin(WIFI_NETWORK, WIFI_PASSWORD);
+      WiFi.begin(ssid.c_str(), pass.c_str());
 
       vTaskDelay(WIFI_TIMEOUT_MS);
 
@@ -111,6 +120,60 @@ void setup() {
   // // PARA SENSOR DOBLE ..................................................
   
   Serial.begin(115200);
+
+    prefs.begin("data", false);
+  ssid = prefs.getString("SSID", String(0));
+  pass = prefs.getString("PASS", String(0));
+
+  if (Serial) {
+    timer = millis();
+    Serial.println("Config mode");
+    Serial.println("SSID: " + ssid);
+    Serial.println("PASS: " + pass);
+  }
+
+  while(Serial){
+
+    if ((millis() - timer) > timeOut){
+      prefs.end();
+      Serial.println("Config Mode closed");
+      break;
+    }
+
+    if (Serial.available() > 0){
+      incomingByte = Serial.readString();
+      Serial.print("Data Received: ");
+      Serial.println(incomingByte);
+
+      if (incomingByte.startsWith("SSID:")){
+        timer = millis();
+        String _ssid = incomingByte.substring(5);
+        // Serial.print("SSID: ");
+        Serial.println("SSID: " + _ssid + " OK!");
+        prefs.putString("SSID",_ssid);
+        ssid = _ssid;
+
+      } else if (incomingByte.startsWith("PASS:")){
+        timer = millis();
+        String _pass = incomingByte.substring(5);
+        // Serial.print("PASS: ");
+        Serial.println("PASS: " + _pass + " OK!");
+        prefs.putString("PASS",_pass);
+        pass = _pass;
+
+      } else if (incomingByte == "CONFIG?"){
+        timer = millis();
+        Serial.println("" + ssid + "");
+        Serial.println("" + pass + "");
+
+      } else if (incomingByte == "RESUME"){
+        prefs.end();
+        Serial.println("Config Mode closed");
+        break;
+      }
+    }
+  }
+
   setupWiFi();
 
   client.setServer(MQTT_SERVER, MQTT_PORT);
@@ -214,9 +277,9 @@ void setupWiFi() {
   delay(10);
   Serial.println();
   Serial.print("[WiFi] Conectando a: ");
-  Serial.print(WIFI_NETWORK);
+  Serial.print(ssid);
 
-  WiFi.begin(WIFI_NETWORK, WIFI_PASSWORD);
+  WiFi.begin(ssid.c_str(), pass.c_str());
 
   int timeout = 0;
 
