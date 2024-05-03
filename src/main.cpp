@@ -3,6 +3,7 @@
 #include <Preferences.h>
 #include "PubSubClient.h"
 #include "time.h"
+//#include "pins_arduino.h"
 
 #include "defs.h"
 
@@ -21,12 +22,17 @@ volatile bool alarmIsSet = false;
 bool sensor01State = false;
 bool lastSensor01State = false;
 
-bool triggered = false;
-
 // // PARA SENSOR DOBLE ...............................................................
 bool sensor02State = false;                                                       //
 bool lastSensor02State = false;                                                   //
 // // PARA SENSOR DOBLE ...............................................................
+
+// // PARA SENSOR TRIPLE ...............................................................
+bool sensor03State = false;                                                       //
+bool lastSensor03State = false;                                                   //
+// // PARA SENSOR TRIPLE ...............................................................
+
+bool triggered = false;
 
 long lastMsg = 0;
 char msg[50];
@@ -243,8 +249,8 @@ void loop() {
       Serial.println(conteo);   
       
       if (WiFi.status() == WL_CONNECTED){
-        prefs.begin("data", false);
-        prefs.putBool("s01", lastSensor01State);
+        prefs.begin(PREFS_BD, false);
+        prefs.putBool(PREFS_S01, lastSensor01State);
         prefs.end();
       }
 
@@ -272,8 +278,8 @@ void loop() {
       Serial.println(conteo);     
       
       if (WiFi.status() == WL_CONNECTED) {
-        prefs.begin("data", false);
-        prefs.putBool("s02", lastSensor02State);
+        prefs.begin(PREFS_BD, false);
+        prefs.putBool(PREFS_S02, lastSensor02State);
         prefs.end();
       }
 
