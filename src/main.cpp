@@ -19,18 +19,15 @@ volatile bool firstConnection = false;
 volatile bool wifiConnected = false;
 volatile bool alarmIsSet = false;
 
+// Inicializamos las variables de lectura de los sensores
 bool sensor01State = false;
 bool lastSensor01State = false;
 
-// // PARA SENSOR DOBLE ...............................................................
-bool sensor02State = false;                                                       //
-bool lastSensor02State = false;                                                   //
-// // PARA SENSOR DOBLE ...............................................................
+bool sensor02State = false;
+bool lastSensor02State = false;
 
-// // PARA SENSOR TRIPLE ...............................................................
-bool sensor03State = false;                                                       //
-bool lastSensor03State = false;                                                   //
-// // PARA SENSOR TRIPLE ...............................................................
+bool sensor03State = false;
+bool lastSensor03State = false;
 
 bool triggered = false;
 
@@ -123,9 +120,8 @@ void setup() {
   pinMode(BUILTIN_LED, OUTPUT);       //INDICADOR DE CONEXION
   pinMode(ALARM_PIN, OUTPUT);          //SALIDA DE ALARMA
   pinMode(SENSOR_01_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 01
-  // // PARA SENSOR DOBLE ..................................................
-  pinMode(SENSOR_02_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 02       //
-  // // PARA SENSOR DOBLE ..................................................
+  pinMode(SENSOR_02_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 02
+  pinMode(SENSOR_03_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 03
   
   Serial.begin(115200);
 
@@ -202,50 +198,30 @@ void loop() {
 
   client.loop();
 
-  // // PARA SENSOR UNICO .............................................
-  // bool readingS01 = digitalRead(SENSOR_01_PIN);                   //
-                                                                
-  // if (readingS01 != lastSensor01State) {                          //
-  //   lastDebounceTime = millis();                                  //
-  // }                                                               //
+  // LECTURA DE ESTADO DE SENSORES ............
+  bool readingS01 = digitalRead(SENSOR_01_PIN);
+  bool readingS02 = digitalRead(SENSOR_02_PIN);
+  bool readingS03 = digitalRead(SENSOR_03_PIN);
 
-  // if ( (millis() - lastDebounceTime) > debounceDelay ){           //
-
-  //   if (readingS01 != sensor01State) {                            //
-
-  //     sensor01State = readingS01;                                 //
-
-  //     conteo++;                                                   //
-  //     Serial.println(conteo);                                     //
-  //     publishSensorState();                                       //
-  //   }                                                             //
-  // }                                                               //
-  // lastSensor01State = readingS01;                                 //
-  // // PARA SENSOR UNICO .............................................
-
-
-  // // PARA SENSOR DOBLE ............................................................................
-  bool readingS01 = digitalRead(SENSOR_01_PIN);                                                    //
-  bool readingS02 = digitalRead(SENSOR_02_PIN);                                                    //
-
-  if ( ( (readingS01 != lastSensor01State) || (readingS02 != lastSensor02State) ) && (triggered == false) ) {                      //
-    lastDebounceTime = millis(); 
+  if ( ( (readingS01 != lastSensor01State) || (readingS02 != lastSensor02State) || (readingS03 != lastSensor03State) ) && (triggered == false) ) {
+    lastDebounceTime = millis();
     triggered = true;
     Serial.println("readings != lastSensorState");
-  }                                                                                              //
+  }
 
   if ( ( (millis() - lastDebounceTime) > debounceDelay ) && triggered == true ){
     
     Serial.println("(millis - lastDebounceTime) > debounceDelay");
     // triggered = false;
 
-    if (readingS01 != lastSensor01State) {                                                           //
+    if (readingS01 != lastSensor01State)
+    {
 
       triggered = false;
       sensor01State = readingS01;
-      lastSensor01State = readingS01;                                                                //
+      lastSensor01State = readingS01;
 
-      conteo++;                                                                                  //
+      conteo++;
       Serial.println(conteo);   
       
       if (WiFi.status() == WL_CONNECTED){
@@ -254,27 +230,26 @@ void loop() {
         prefs.end();
       }
 
-      if (readingS01 == 1) {                                                                  //
-        publishTransmitter("event","Sensor01,abierto," + stringLocalTime());                     //
+      if (readingS01 == 1) {
+        publishTransmitter("event","Sensor01,abierto," + stringLocalTime());
 
-        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida            //
-        if (alarmIsSet == true && readingS01 == 1) {                                          //
-          // digitalWrite(alarmPin, 1);                                                             //
-        }                                                                                        //
+        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
+        if (alarmIsSet == true && readingS01 == 1) {
+          // digitalWrite(alarmPin, 1);
+        }
 
-      } else {                                                                                   //
-        publishTransmitter("event","Sensor01,cerrado," + stringLocalTime());                     //
-      }                                                                                          //
+      } else {
+        publishTransmitter("event","Sensor01,cerrado," + stringLocalTime());
+      }
 
-      // lastSensor01State = sensor01State;
-
-    } else if(readingS02 != lastSensor02State){                                                      //
+    } else if(readingS02 != lastSensor02State)
+    {
 
       triggered = false;
       sensor02State = readingS02;
-      lastSensor02State = readingS02;                                                                //
+      lastSensor02State = readingS02;
 
-      conteo++;                                                                                  //
+      conteo++;
       Serial.println(conteo);     
       
       if (WiFi.status() == WL_CONNECTED) {
@@ -283,23 +258,46 @@ void loop() {
         prefs.end();
       }
 
-      if (readingS02 == 1) {                                                                  //
-        publishTransmitter("event","Sensor02,abierto," + stringLocalTime());                     //
+      if (readingS02 == 1) {
+        publishTransmitter("event","Sensor02,abierto," + stringLocalTime());
 
-        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida            //
-        if (alarmIsSet == true && readingS02 == 1) {                                          //
-          // digitalWrite(alarmPin, 1);                                                             //
-        }                                                                                        //
+        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
+        if (alarmIsSet == true && readingS02 == 1) {
+          // digitalWrite(alarmPin, 1);
+        }
 
-      } else {                                                                                   //
-        publishTransmitter("event","Sensor02,cerrado," + stringLocalTime());                     //
-      }                                                                                          //
+      } else {
+        publishTransmitter("event","Sensor02,cerrado," + stringLocalTime());
+      }
 
-      // lastSensor02State = sensor02State;
+    } else if (readingS03 != lastSensor03State)
+    {
+      triggered = false;
+      sensor03State = readingS03;
+      lastSensor03State = readingS03;
 
-    }                                                                                            //
-  }                                                                                              //
-  // // PARA SENSOR DOBLE ............................................................................
+      conteo++;
+      Serial.println(conteo);   
+
+      if (WiFi.status() == WL_CONNECTED) {
+        prefs.begin(PREFS_BD, false);
+        prefs.putBool(PREFS_S03, lastSensor03State);
+        prefs.end();
+      }
+
+      if (readingS03 == 1) {
+        publishTransmitter("event","Sensor03,abierto," + stringLocalTime());
+
+        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
+        if (alarmIsSet == true && readingS03 == 1) {
+          // digitalWrite(alarmPin, 1);
+        }
+
+      } else {
+        publishTransmitter("event","Sensor03,cerrado," + stringLocalTime());
+      }
+    }
+  }
 }
 
 void setupWiFi() {
@@ -343,6 +341,7 @@ void reconnectedMQTT() {
     prefs.begin(PREFS_BD, false);
     lastSensor01State = prefs.getBool(PREFS_S01, 0);
     lastSensor02State = prefs.getBool(PREFS_S02, 0);
+    lastSensor03State = prefs.getBool(PREFS_S03, 0);
     prefs.end();
 
     while (!client.connected()) {
@@ -401,16 +400,18 @@ void callback(char* topic, byte* payload, unsigned int length) {
     if (sensor01State == 1) publishTransmitter("response","Sensor01,abierto");
     else publishTransmitter("response","Sensor01,cerrado");
 
-    // // PARA SENSOR DOBLE ............................................................
-    if (sensor02State == 1) publishTransmitter("response","Sensor02,abierto");     //
-    else publishTransmitter("response","Sensor02,cerrado");                        //
-    // // PARA SENSOR DOBLE ............................................................
+    if (sensor02State == 1) publishTransmitter("response","Sensor02,abierto");
+    else publishTransmitter("response","Sensor02,cerrado");
+
+    if (sensor03State == 1) publishTransmitter("response","Sensor03,abierto");
+    else publishTransmitter("response","Sensor03,cerrado");
 
   } else if (incoming == "open") {
     bool dato = 1;
     prefs.begin(PREFS_BD, false);
     prefs.putBool(PREFS_S01, dato);
     prefs.putBool(PREFS_S02, dato);
+    prefs.putBool(PREFS_S03, dato);
     Serial.println("Sensores abiertos");
     prefs.end();
 
@@ -419,6 +420,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
     prefs.begin(PREFS_BD, false);
     prefs.putBool(PREFS_S01, dato);
     prefs.putBool(PREFS_S02, dato);
+    prefs.putBool(PREFS_S03, dato);
     Serial.println("Sensores cerrados");
     prefs.end();
 
@@ -460,45 +462,51 @@ void publishSensorState(){
 
     // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
     if (alarmIsSet == true && sensor01State == 1) {
-      digitalWrite(ALARM_PIN, 1);
+      // digitalWrite(ALARM_PIN, 1);
     }
 
   } else {
     publishTransmitter("event","Sensor01,cerrado," + stringLocalTime());
   }
 
-  // // PAR SENSOR DOBLE ................................................................
-  if (sensor02State == 1) {                                                         //
-    publishTransmitter("event","Sensor02,abierto," + stringLocalTime());            //
+  if (sensor02State == 1) {
+    publishTransmitter("event","Sensor02,abierto," + stringLocalTime());
 
-    // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida   //
-    if (alarmIsSet == true && sensor02State == 1) {                                 //
-      digitalWrite(ALARM_PIN, 1);                                                   //
-    }                                                                               //
+    // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
+    if (alarmIsSet == true && sensor02State == 1) {
+      // digitalWrite(ALARM_PIN, 1);
+    }
 
-  } else {                                                                          //
-    publishTransmitter("event","Sensor02,cerrado," + stringLocalTime());            //
-  }                                                                                 //
-  // // PARA SENSOR DOBLE ...............................................................
+  } else {
+    publishTransmitter("event","Sensor02,cerrado," + stringLocalTime());
+  }
+
+  if (sensor03State == 1) {
+    publishTransmitter("event","Sensor03,abierto," + stringLocalTime());
+
+    // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
+    if (alarmIsSet == true && sensor03State == 1) {
+      // digitalWrite(ALARM_PIN, 1);
+    }
+
+  } else {
+    publishTransmitter("event","Sensor03,cerrado," + stringLocalTime());
+  }
 }
 
 void publishOnConnetion(){
-  // PARA SENSOR UNICO..................................
-  // if(sensor01State) {                                 //
-  //   publishSensorState();                             //
-  // }                                                   //
-  // PARA SENSOR UNICO..................................
-
-  // // PARA SENSOR DOBLE..................................
   
   sensor01State = digitalRead(SENSOR_01_PIN);
   sensor02State = digitalRead(SENSOR_02_PIN);
+  sensor03State = digitalRead(SENSOR_03_PIN);
 
-  if( (sensor01State != lastSensor01State) || (sensor02State != lastSensor02State) ) {
+  if( (sensor01State != lastSensor01State) || (sensor02State != lastSensor02State) || (sensor03State != lastSensor03State) )
+  {
 
     prefs.begin(PREFS_BD, false);
     prefs.putBool(PREFS_S01, sensor01State);
     prefs.putBool(PREFS_S02, sensor02State);
+    prefs.putBool(PREFS_S03, sensor03State);
     prefs.end();
 
     Serial.println("Cambio de estado durante apagado");
@@ -508,7 +516,6 @@ void publishOnConnetion(){
     Serial.println("Sin cambio de estado durante apagado");
 
   }
-  // // PARA SENSOR DOBLE..................................
 
   return;
 }
