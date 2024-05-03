@@ -44,8 +44,8 @@ String queryTopic = xqueryTopic;
 String topicToPublish = xtopicToPublish;
 
 String incomingByte = "";
-String ssid = "NETWORK_SSID";
-String pass = "NETWORK_PASS";
+String ssid = "IZZI-7154";
+String pass = "py4pdHAHdksfxR79xg";
 
 void setupWiFi();
 void callback(char* topic, byte* payload, unsigned int length);
@@ -126,8 +126,11 @@ void setup() {
   Serial.begin(115200);
 
   prefs.begin(PREFS_BD, false);
-  ssid = prefs.getString(PREFS_SSID, String(0));
-  pass = prefs.getString(PREFS_PASS, String(0));
+  // ssid = prefs.getString(PREFS_SSID, String(0));
+  ssid = prefs.getString(PREFS_SSID, "IZZI-7154");
+  // pass = prefs.getString(PREFS_PASS, String(0));
+  pass = prefs.getString(PREFS_PASS, "py4pdHAHdksfxR79xg");
+
 
   if (Serial) {
     timer = millis();
