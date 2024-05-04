@@ -3,7 +3,6 @@
 #include <Preferences.h>
 #include "PubSubClient.h"
 #include "time.h"
-//#include "pins_arduino.h"
 
 #include "defs.h"
 
@@ -44,8 +43,8 @@ String queryTopic = xqueryTopic;
 String topicToPublish = xtopicToPublish;
 
 String incomingByte = "";
-String ssid = "IZZI-7154";
-String pass = "py4pdHAHdksfxR79xg";
+String ssid = "SSID";
+String pass = "PASS";
 
 void setupWiFi();
 void callback(char* topic, byte* payload, unsigned int length);
@@ -126,21 +125,25 @@ void setup() {
   Serial.begin(115200);
 
   prefs.begin(PREFS_BD, false);
-  // ssid = prefs.getString(PREFS_SSID, String(0));
-  ssid = prefs.getString(PREFS_SSID, "IZZI-7154");
-  // pass = prefs.getString(PREFS_PASS, String(0));
-  pass = prefs.getString(PREFS_PASS, "py4pdHAHdksfxR79xg");
-
+  ssid = prefs.getString(PREFS_SSID, String(0));
+  pass = prefs.getString(PREFS_PASS, String(0));
 
   if (Serial) {
     timer = millis();
-    Serial.println("Config mode");
+    Serial.println("NOTICE: You are in Config mode");
+    Serial.println("[WIFI settings]");
     Serial.println("SSID: " + ssid);
     Serial.println("PASS: " + pass);
+    Serial.println("\nPress 'C' to show WIFI settings");
+    Serial.println("\nSend 'SSID:My_SSID' to modify actual SSID");
+    Serial.println("\nSend 'PASS:My_PASS' to modify actual PASS");
+    Serial.println("\nPress 'R' to close Config mode and star-up the main aplication");
+    Serial.println("\nConfig Mode will automaticly close after 10 seconds of inactivity");
   }
 
   while(Serial){
 
+    //
     if ((millis() - timer) > timeOut){
       prefs.end();
       Serial.println("Config Mode closed");
@@ -156,14 +159,14 @@ void setup() {
         timer = millis();
         String _ssid = incomingByte.substring(5);
         Serial.println("SSID: " + _ssid + " OK!");
-        prefs.putString("SSID",_ssid);
+        prefs.putString(PREFS_SSID, _ssid);
         ssid = _ssid;
 
       } else if (incomingByte.startsWith("PASS:")){
         timer = millis();
         String _pass = incomingByte.substring(5);
         Serial.println("PASS: " + _pass + " OK!");
-        prefs.putString("PASS",_pass);
+        prefs.putString(PREFS_PASS, _pass);
         pass = _pass;
 
       } else if (incomingByte == "C"){
@@ -209,12 +212,12 @@ void loop() {
   if ( ( (readingS01 != lastSensor01State) || (readingS02 != lastSensor02State) || (readingS03 != lastSensor03State) ) && (triggered == false) ) {
     lastDebounceTime = millis();
     triggered = true;
-    Serial.println("readings != lastSensorState");
+    // Serial.println("readings != lastSensorState");
   }
 
   if ( ( (millis() - lastDebounceTime) > debounceDelay ) && triggered == true ){
     
-    Serial.println("(millis - lastDebounceTime) > debounceDelay");
+    // Serial.println("(millis - lastDebounceTime) > debounceDelay");
     // triggered = false;
 
     if (readingS01 != lastSensor01State)
@@ -427,6 +430,8 @@ void callback(char* topic, byte* payload, unsigned int length) {
     Serial.println("Sensores cerrados");
     prefs.end();
 
+  } else if (incoming == "restart") {
+    ESP.restart();
   }
 }
 
