@@ -25,6 +25,13 @@ bool lastSensor01State = false;
 bool sensor02State = false;
 bool lastSensor02State = false;
 
+// MULTI-INPUT
+int sensorQuantity = 2;  // Ajusta entre 1 y 6
+bool sensorState[SENSOR_MAX] = {false};
+bool lastSensorState[SENSOR_MAX] = {false};
+// MULTI-INPUT
+
+
 // bool sensor03State = false;
 // bool lastSensor03State = false;
 
@@ -121,6 +128,12 @@ void setup() {
   pinMode(SENSOR_01_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 01
   pinMode(SENSOR_02_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 02
   //pinMode(SENSOR_03_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 03
+
+  // MULTI-INPUT
+  for (int i = 0; i < sensorQuantity; i++) {
+    pinMode(sensorPins[i], INPUT_PULLUP);
+  }
+  // MULTI-INPUT
   
   Serial.begin(115200);
 
