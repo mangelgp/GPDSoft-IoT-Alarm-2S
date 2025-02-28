@@ -171,6 +171,7 @@ void setup() {
         String subStr = incomingByte.substring(5);
         if (subStr.length() > 0 && subStr.toInt() != 0) {
           sensorQuantity = subStr.toInt();
+          prefs.putInt(PREFS_NSEN, sensorQuantity);
           Serial.println("NSEN: " + subStr + " OK!");
         } else {
             // Manejar error, subStr no es un número válido
