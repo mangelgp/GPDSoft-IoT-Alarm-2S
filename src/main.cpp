@@ -18,30 +18,16 @@ volatile bool firstConnection = false;
 volatile bool wifiConnected = false;
 volatile bool alarmIsSet = false;
 
-// Inicializamos las variables de lectura de los sensores
-bool sensor01State = false;
-bool lastSensor01State = false;
-
-bool sensor02State = false;
-bool lastSensor02State = false;
-
-// MULTI-INPUT
-int sensorQuantity = 2;  // Ajusta entre 1 y 6
+int sensorQuantity = 1;  // Ajusta entre 1 y 6
 bool sensorState[SENSOR_MAX] = {false};
 bool lastSensorState[SENSOR_MAX] = {false};
-// MULTI-INPUT
-
-
-// bool sensor03State = false;
-// bool lastSensor03State = false;
-
 bool triggered = false;
 
 long lastMsg = 0;
 char msg[50];
 
 unsigned int conteo = 0;
-unsigned long lastDebounceTime = 0; // tiempo del ultimo cambio de estado del sensor
+unsigned long lastDebounceTime[SENSOR_MAX] = {0}; // tiempo del ultimo cambio de estado del sensor
 
 unsigned long timeOut = 10000;   // Tiempo máximo de espera en modo configuración (10s)
 unsigned long timer = 0;
@@ -125,21 +111,13 @@ void setup() {
 
   pinMode(BUILTIN_LED, OUTPUT);       //INDICADOR DE CONEXION
   pinMode(ALARM_PIN, OUTPUT);          //SALIDA DE ALARMA
-  pinMode(SENSOR_01_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 01
-  pinMode(SENSOR_02_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 02
-  //pinMode(SENSOR_03_PIN, INPUT_PULLUP);   //ENTRADA DE SENSOR 03
 
-  // MULTI-INPUT
-  for (int i = 0; i < sensorQuantity; i++) {
-    pinMode(sensorPins[i], INPUT_PULLUP);
-  }
-  // MULTI-INPUT
-  
   Serial.begin(115200);
 
   prefs.begin(PREFS_BD, false);
   ssid = prefs.getString(PREFS_SSID, String(0));
   pass = prefs.getString(PREFS_PASS, String(0));
+  sensorQuantity = prefs.getInt(PREFS_NSEN, 1);
 
   if (Serial) {
     timer = millis();
@@ -150,6 +128,7 @@ void setup() {
     Serial.println("\nPress 'C' to show WIFI settings");
     Serial.println("\nSend 'SSID:My_SSID' to modify actual SSID");
     Serial.println("\nSend 'PASS:My_PASS' to modify actual PASS");
+    Serial.println("\nSend 'NSEN:1-6' to modify actual number of sensors");
     Serial.println("\nPress 'R' to close Config mode and star-up the main aplication");
     Serial.println("\nConfig Mode will automaticly close after 10 seconds of inactivity");
   }
@@ -187,12 +166,28 @@ void setup() {
         Serial.println("" + ssid + "");
         Serial.println("" + pass + "");
 
+      } else if (incomingByte.startsWith("NSEN:")) {
+        timer = millis();
+        String subStr = incomingByte.substring(5);
+        if (subStr.length() > 0 && subStr.toInt() != 0) {
+          sensorQuantity = subStr.toInt();
+          Serial.println("NSEN: " + subStr + " OK!");
+        } else {
+            // Manejar error, subStr no es un número válido
+            Serial.println("Error: Ingrese un numero del 1 al 6");
+        }
       } else if (incomingByte == "R"){
         prefs.end();
         Serial.println("Config Mode closed");
         break;
       }
     }
+
+    // config all sensorPins as input
+    for (int i = 0; i < sensorQuantity; i++) {
+      pinMode(sensorPins[i], INPUT_PULLUP);
+    }
+
   }
 
   setupWiFi();
@@ -217,9 +212,37 @@ void loop() {
 
   client.loop();
 
+  for (int i = 0; i < sensorQuantity; i++) {
+    bool reading = digitalRead(sensorPins[i]);
+
+    if ((reading != lastSensorState[i]) && triggered == false) {
+      lastDebounceTime[i] = millis(); // Reinicia el temporizador
+      triggered = true;
+    }
+
+    if (((millis() - lastDebounceTime[i]) > debounceDelay) && triggered == true)  { // Confirma el cambio después del tiempo de debounce
+      if (reading != sensorState[i]) { 
+        sensorState[i] = reading;
+        lastSensorState[i] = reading;
+        
+
+        // Save actual value on non-volatile memory
+        if (WiFi.status() == WL_CONNECTED){
+          prefs.begin(PREFS_BD, false);
+          prefs.putBool(sensorPrefs[i], lastSensorState[i]);
+          prefs.end();
+
+          publishTransmitter("event", "Sensor " + String(i + 1) + (reading ? ",abierto," : ",cerrado,") + stringLocalTime());
+        }
+
+        triggered = false;
+      }
+    }
+  }
+/*
   // LECTURA DE ESTADO DE SENSORES ............
-  bool readingS01 = digitalRead(SENSOR_01_PIN);
-  bool readingS02 = digitalRead(SENSOR_02_PIN);
+  // bool readingS01 = digitalRead(SENSOR_01_PIN);
+  // bool readingS02 = digitalRead(SENSOR_02_PIN);
   //bool readingS03 = digitalRead(SENSOR_03_PIN);
 
   if ( ( (readingS01 != lastSensor01State) || (readingS02 != lastSensor02State) ) && (triggered == false) ) {
@@ -290,7 +313,8 @@ void loop() {
       }
 
     } 
-  }
+  } 
+  */
 }
 
 void setupWiFi() {
@@ -332,9 +356,10 @@ void reconnectedMQTT() {
   if(wifiConnected == true){
 
     prefs.begin(PREFS_BD, false);
-    lastSensor01State = prefs.getBool(PREFS_S01, 0);
-    lastSensor02State = prefs.getBool(PREFS_S02, 0);
-    //lastSensor03State = prefs.getBool(PREFS_S03, 0);
+
+    for (int i = 0; i < sensorQuantity; i++) {
+      lastSensorState[i] = prefs.getBool(sensorPrefs[i]);
+    }
     prefs.end();
 
     while (!client.connected()) {
@@ -390,32 +415,26 @@ void callback(char* topic, byte* payload, unsigned int length) {
     alarmIsSet = false;
 
   } else if (incoming == "sensor_state") {
-    if (sensor01State == 1) publishTransmitter("response","Sensor01,abierto");
-    else publishTransmitter("response","Sensor01,cerrado");
-
-    if (sensor02State == 1) publishTransmitter("response","Sensor02,abierto");
-    else publishTransmitter("response","Sensor02,cerrado");
-
-    // if (sensor03State == 1) publishTransmitter("response","Sensor03,abierto");
-    // else publishTransmitter("response","Sensor03,cerrado");
-
+    for (int i = 0; i < sensorQuantity; i++) {
+      publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime());
+    }
   } else if (incoming == "open") {
-    bool dato = 1;
-    prefs.begin(PREFS_BD, false);
-    prefs.putBool(PREFS_S01, dato);
-    prefs.putBool(PREFS_S02, dato);
-    //prefs.putBool(PREFS_S03, dato);
-    Serial.println("Sensores abiertos");
-    prefs.end();
+    // bool dato = 1;
+    // prefs.begin(PREFS_BD, false);
+    // prefs.putBool(PREFS_S01, dato);
+    // prefs.putBool(PREFS_S02, dato);
+    // //prefs.putBool(PREFS_S03, dato);
+    // Serial.println("Sensores abiertos");
+    // prefs.end();
 
   } else if (incoming == "close") {
-    bool dato = 0;
-    prefs.begin(PREFS_BD, false);
-    prefs.putBool(PREFS_S01, dato);
-    prefs.putBool(PREFS_S02, dato);
-    //prefs.putBool(PREFS_S03, dato);
-    Serial.println("Sensores cerrados");
-    prefs.end();
+    // bool dato = 0;
+    // prefs.begin(PREFS_BD, false);
+    // prefs.putBool(PREFS_S01, dato);
+    // prefs.putBool(PREFS_S02, dato);
+    // //prefs.putBool(PREFS_S03, dato);
+    // Serial.println("Sensores cerrados");
+    // prefs.end();
 
   } else if (incoming == "restart") {
     ESP.restart();
@@ -450,6 +469,7 @@ String stringLocalTime(){
   return asString;
 }
 
+/*
 void publishSensorState(){
 
   if (sensor01State == 1) {
@@ -487,30 +507,27 @@ void publishSensorState(){
   // } else {
   //   publishTransmitter("event","Sensor03,cerrado," + stringLocalTime());
   // }
-}
+} */
 
 void publishOnConnetion(){
-  
-  sensor01State = digitalRead(SENSOR_01_PIN);
-  sensor02State = digitalRead(SENSOR_02_PIN);
-  // sensor03State = digitalRead(SENSOR_03_PIN);
 
-  if( (sensor01State != lastSensor01State) || (sensor02State != lastSensor02State) )
-  {
-
-    prefs.begin(PREFS_BD, false);
-    prefs.putBool(PREFS_S01, sensor01State);
-    prefs.putBool(PREFS_S02, sensor02State);
-    //prefs.putBool(PREFS_S03, sensor03State);
-    prefs.end();
-
-    Serial.println("Cambio de estado durante apagado");
-
-  } else {
-
-    Serial.println("Sin cambio de estado durante apagado");
-
+  for (int i = 0; i < sensorQuantity; i++) {  // read al sensors and save
+    sensorState[i] = digitalRead(sensorPins[i]);
   }
 
+  prefs.begin(PREFS_BD, false);
+
+  for (int i = 0; i < sensorQuantity; i++) {  // check changes on sensors during shutdown
+    if( (sensorState[i] != lastSensorState[i]))
+    {
+      prefs.putBool(sensorPrefs[i], sensorState[i]);
+      Serial.println("Cambio de estado durante apagado");
+      publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime()); // Publish latest sensorState
+
+    } else {
+      Serial.println("Sin cambio de estado durante apagado");
+    }
+  }
+  prefs.end();
   return;
 }
