@@ -31,9 +31,11 @@ unsigned long lastDebounceTime[SENSOR_MAX] = {0}; // tiempo del ultimo cambio de
 
 unsigned long timeOut = 10000;   // Tiempo máximo de espera en modo configuración (10s)
 unsigned long timer = 0;
+unsigned long publishInterval = 1000; // Duración en milisegundos (1 segundos)
+unsigned long lastPublishTime = 0;
 
 String queryTopic = xqueryTopic;
-String topicToPublish = xtopicToPublish;
+// String topicToPublish = xtopicToPublish;
 
 String incomingByte = "";
 String ssid = "SSID";
@@ -41,7 +43,7 @@ String pass = "PASS";
 
 void setupWiFi();
 void callback(char* topic, byte* payload, unsigned int length);
-void publishTransmitter(String topicType,String txt);
+void publishTransmitter(const char* topicType, const char* txt);
 void reconnectedMQTT();
 void publishSensorState();
 void publishOnConnetion();
@@ -77,6 +79,49 @@ void visualIndicator(void *parameter){
 }
 
 void checkWiFiConnection(void *parameter){
+  static int checkCount = 0;  // verification counter
+
+  for(;;) {
+    if (firstConnection == true) {
+      if (WiFi.status() == WL_CONNECTED) {
+        // Print every 10 verifications
+        if (checkCount % 10 == 0) {
+          Serial.println("[WiFi] OK!");
+        }
+        wifiConnected = true;
+      } else {
+        wifiConnected = false;
+        Serial.println("[WIFI] Connecting...");
+        WiFi.begin(ssid.c_str(), pass.c_str());
+
+        unsigned long startAttemptTime = millis();
+        while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_TIMEOUT_MS) {
+          Serial.print(".");
+          vTaskDelay(100);
+        }
+
+        if (WiFi.status() == WL_CONNECTED) {
+          Serial.println("[WIFI] Connected: " + WiFi.localIP());
+          wifiConnected = true;
+        } else {
+          Serial.println("[WIFI] FAILED");
+          vTaskDelay(WIFI_RECOVER_TIME_MS);  // Espera antes de intentar otra conexión
+        }
+      }
+
+      // Counter increment
+      checkCount++;
+
+      // Clear counter after 10 verifications
+      if (checkCount >= 10) {
+        checkCount = 0; 
+      }
+
+      vTaskDelay(1000); // Check WiFi connection every second
+    }
+  }
+
+/*
   for(;;){
 
     if(firstConnection == true){
@@ -104,7 +149,8 @@ void checkWiFiConnection(void *parameter){
       wifiConnected = true;
       vTaskDelay(1000);
     }
-  }  
+  }
+*/  
 }
 
 void setup() {
@@ -122,9 +168,10 @@ void setup() {
   if (Serial) {
     timer = millis();
     Serial.println("NOTICE: You are in Config mode");
-    Serial.println("[WIFI settings]");
+    Serial.println("[All settings]");
     Serial.println("SSID: " + ssid);
     Serial.println("PASS: " + pass);
+    Serial.printf("NSEN: %d\n", sensorQuantity);
     Serial.println("\nPress 'C' to show WIFI settings");
     Serial.println("\nSend 'SSID:My_SSID' to modify actual SSID");
     Serial.println("\nSend 'PASS:My_PASS' to modify actual PASS");
@@ -174,7 +221,7 @@ void setup() {
           prefs.putInt(PREFS_NSEN, sensorQuantity);
           Serial.println("NSEN: " + subStr + " OK!");
         } else {
-            // Manejar error, subStr no es un número válido
+            // Handle error if NSEN is not an int number
             Serial.println("Error: Ingrese un numero del 1 al 6");
         }
       } else if (incomingByte == "R"){
@@ -233,123 +280,54 @@ void loop() {
           prefs.putBool(sensorPrefs[i], lastSensorState[i]);
           prefs.end();
 
-          publishTransmitter("event", "Sensor " + String(i + 1) + (reading ? ",abierto," : ",cerrado,") + stringLocalTime());
-        }
+          char msg[100]; //Buffer to save message before publishing
+          snprintf(msg, sizeof(msg), "Sensor %d,%s,%s", 
+            i + 1, 
+            reading ? "abierto" : "cerrado", 
+            stringLocalTime().c_str());
+          publishTransmitter("event", msg);
 
+          while (millis() - lastPublishTime < publishInterval) {
+            // No hacer nada, solo esperar hasta que pase el tiempo
+          }
+        }
+        
+        lastPublishTime = millis();
         triggered = false;
       }
     }
   }
-/*
-  // LECTURA DE ESTADO DE SENSORES ............
-  // bool readingS01 = digitalRead(SENSOR_01_PIN);
-  // bool readingS02 = digitalRead(SENSOR_02_PIN);
-  //bool readingS03 = digitalRead(SENSOR_03_PIN);
-
-  if ( ( (readingS01 != lastSensor01State) || (readingS02 != lastSensor02State) ) && (triggered == false) ) {
-    lastDebounceTime = millis();
-    triggered = true;
-    // Serial.println("readings != lastSensorState");
-  }
-
-  if ( ( (millis() - lastDebounceTime) > debounceDelay ) && triggered == true ){
-    
-    // Serial.println("(millis - lastDebounceTime) > debounceDelay");
-    // triggered = false;
-
-    if (readingS01 != lastSensor01State)
-    {
-
-      triggered = false;
-      sensor01State = readingS01;
-      lastSensor01State = readingS01;
-
-      conteo++;
-      Serial.println(conteo);   
-      
-      if (WiFi.status() == WL_CONNECTED){
-        prefs.begin(PREFS_BD, false);
-        prefs.putBool(PREFS_S01, lastSensor01State);
-        prefs.end();
-      }
-
-      if (readingS01 == 1) {
-        publishTransmitter("event","Sensor01,abierto," + stringLocalTime());
-
-        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
-        if (alarmIsSet == true && readingS01 == 1) {
-          // digitalWrite(alarmPin, 1);
-        }
-
-      } else {
-        publishTransmitter("event","Sensor01,cerrado," + stringLocalTime());
-      }
-
-    } else if(readingS02 != lastSensor02State)
-    {
-
-      triggered = false;
-      sensor02State = readingS02;
-      lastSensor02State = readingS02;
-
-      conteo++;
-      Serial.println(conteo);     
-      
-      if (WiFi.status() == WL_CONNECTED) {
-        prefs.begin(PREFS_BD, false);
-        prefs.putBool(PREFS_S02, lastSensor02State);
-        prefs.end();
-      }
-
-      if (readingS02 == 1) {
-        publishTransmitter("event","Sensor02,abierto," + stringLocalTime());
-
-        // Disparamos la bocina cuando se activa el sensor y la alarma esta encendida
-        if (alarmIsSet == true && readingS02 == 1) {
-          // digitalWrite(alarmPin, 1);
-        }
-
-      } else {
-        publishTransmitter("event","Sensor02,cerrado," + stringLocalTime());
-      }
-
-    } 
-  } 
-  */
 }
 
 void setupWiFi() {
 
-  delay(10);
-  Serial.println();
-  Serial.print("[WiFi] Conectando a: ");
+  Serial.print("\n[WiFi] Conectando a: ");
   Serial.print(ssid);
 
   WiFi.begin(ssid.c_str(), pass.c_str());
 
-  int timeout = 0;
-
-  while (WiFi.status() != WL_CONNECTED) {
-    firstConnection = false;
-    delay(500);
-    Serial.print(".");
-    timeout++;
-    if(timeout >= 10){
-      ESP.restart();
+  unsigned long startAttemptTime = millis();
+  unsigned long lastDotTime = 0;
+  
+  while (WiFi.status() != WL_CONNECTED && millis() - startAttemptTime < WIFI_TIMEOUT_MS) {
+    if (millis() - lastDotTime > 500) {
+      Serial.print(".");
+      firstConnection = false;
+      lastDotTime = millis();  // Actualiza el tiempo para evitar "flood" de puntos
     }
   }
 
-  firstConnection = true;
-  Serial.println();
-  Serial.println("[WiFi] Conectado a la red WiFi");
-  Serial.print("[WiFi] Direccion IP: ");
-  Serial.println(WiFi.localIP());
-  wifiConnected = true;
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("\n[WiFi] Conectado a la red WiFi");
+    Serial.print("[WiFi] Direccion IP: ");
+    Serial.println(WiFi.localIP());
+    wifiConnected = true;
+    firstConnection = true;
+  } else {
+    ESP.restart();
+  }
 
   configTime(gmtOffset_sec, daylightOffset_sec, ntpServer);
-
-  delay(1000);
-
 }
 
 void reconnectedMQTT() {
@@ -416,8 +394,15 @@ void callback(char* topic, byte* payload, unsigned int length) {
     alarmIsSet = false;
 
   } else if (incoming == "sensor_state") {
+
+    char msg[100]; //Buffer to save message before publishing
     for (int i = 0; i < sensorQuantity; i++) {
-      publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime());
+      // publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime());
+      snprintf(msg, sizeof(msg), "Sensor %d,%s,%s", 
+        i + 1, 
+        sensorState[i] ? "abierto" : "cerrado", 
+        stringLocalTime().c_str());
+      publishTransmitter("event", msg);
     }
   } else if (incoming == "open") {
     // bool dato = 1;
@@ -442,18 +427,13 @@ void callback(char* topic, byte* payload, unsigned int length) {
   }
 }
 
-void publishTransmitter(String topicType, String txt){
-  char topic[30];
-  String topicString;
-  topicString = topicToPublish + topicType;
+void publishTransmitter(const char* topicType, const char* txt){
+  char topic[50], msg[100]; 
 
-  Serial.print(String(txt));
-  txt.toCharArray(msg, 50);
-  
-  Serial.println(" => "  + String(topicString));
-  
-  topicString.toCharArray(topic,30);
+  snprintf(topic, sizeof(topic), "%s%s", xtopicToPublish, topicType); 
+  snprintf(msg, sizeof(msg), "%s", txt); 
 
+  Serial.println(msg); 
   client.publish(topic, msg);
 }
 
@@ -523,7 +503,15 @@ void publishOnConnetion(){
     {
       prefs.putBool(sensorPrefs[i], sensorState[i]);
       Serial.println("Cambio de estado durante apagado");
-      publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime()); // Publish latest sensorState
+      
+      //publishTransmitter("event", "Sensor " + String(i + 1) + (sensorState[i] ? ",abierto," : ",cerrado,") + stringLocalTime()); // Publish latest sensorState
+      
+      char msg[100]; //Buffer to save message before publishing
+      snprintf(msg, sizeof(msg), "Sensor %d,%s,%s", 
+        i + 1, 
+        sensorState[i] ? "abierto" : "cerrado", 
+        stringLocalTime().c_str());
+      publishTransmitter("event", msg);
 
     } else {
       Serial.println("Sin cambio de estado durante apagado");
