@@ -9,8 +9,6 @@
 #include "defs.h"         //variables de entorno
 
 TaskHandle_t Task1;
-TaskHandle_t Task2;
-//TaskHandle_t Task3;
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -45,35 +43,6 @@ void reconnectedMQTT();
 void publishOnConnetion();
 void updateFirmware(const char* firmware_url);
 String stringLocalTime();
-
-void visualIndicator(void *parameter){
-  for(;;){
-
-    if (wifiConnected == true){
-      
-      if(client.connected()){
-        digitalWrite(LED_BUILTIN, 1);
-        delay(100/portTICK_PERIOD_MS);
-        digitalWrite(LED_BUILTIN, 0);
-        vTaskDelay(5000/portTICK_PERIOD_MS);
-      } else {
-        digitalWrite(LED_BUILTIN, 1);
-        vTaskDelay(100/portTICK_PERIOD_MS);
-        digitalWrite(LED_BUILTIN, 0);
-        vTaskDelay(300/portTICK_PERIOD_MS);
-        digitalWrite(LED_BUILTIN, 1);
-        vTaskDelay(100/portTICK_PERIOD_MS);
-        digitalWrite(LED_BUILTIN, 0);
-        vTaskDelay(3000/portTICK_PERIOD_MS);
-      }
-    } else{
-      digitalWrite(LED_BUILTIN, 1);
-      vTaskDelay(50/portTICK_PERIOD_MS);
-      digitalWrite(LED_BUILTIN, 0);
-      vTaskDelay(200/portTICK_PERIOD_MS);
-    }
-  }
-}
 
 void checkWiFiConnection(void *parameter){
   
@@ -226,8 +195,8 @@ void setup() {
   client.setServer(MQTT_SERVER, MQTT_PORT);
   client.setCallback(callback);
 
-  xTaskCreate(visualIndicator, "Task1", 1000, NULL, 1, &Task1);
-  xTaskCreatePinnedToCore(checkWiFiConnection, "setWiFi", 10000, NULL, 3, &Task2, 0);
+  // xTaskCreate(visualIndicator, "Task1", 1000, NULL, 1, &Task1);
+  xTaskCreatePinnedToCore(checkWiFiConnection, "setWiFi", 10000, NULL, 3, &Task1, 0);
 }
 
 void loop() {
@@ -490,7 +459,6 @@ void publishOnConnetion(){
 void updateFirmware(const char* firmware_url) {
 
   vTaskSuspend(Task1);
-  vTaskSuspend(Task2);
 
   HTTPClient http;
   http.begin(firmware_url);
@@ -512,7 +480,6 @@ void updateFirmware(const char* firmware_url) {
   } 
 
   vTaskResume(Task1);
-  vTaskResume(Task2);
 
   http.end();
 }
